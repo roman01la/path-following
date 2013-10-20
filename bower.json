@@ -1,0 +1,21 @@
+{
+  "name": "path-following",
+  "version": "0.0.0",
+  "homepage": "https://github.com/roman01la/path-following",
+  "authors": [
+    "roman01la <roman01la@romanliutikov.com>"
+  ],
+  "description": "JavaScript implementation of Craig Reynolds’s path-following algorithm",
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components",
+    "test",
+    "tests"
+  ],
+  "dependencies": {
+    "gl-matrix": "~2.2.0"
+  }
+}
