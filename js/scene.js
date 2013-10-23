@@ -7,7 +7,7 @@ vec2.limit = function (out, v, high) {
 
   var len = x*x + y*y;
 
-  if (len > high) {
+  if (len > high*high && len > 0) {
     out[0] = x;
     out[1] = y;
     vec2.normalize(out, out);
