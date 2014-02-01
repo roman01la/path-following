@@ -21,6 +21,23 @@
 var Vehicle = function (location, mass) {
   'use strict';
 
+  var predict, normalPoint, dir,
+      a, b, ap, ab, clonea, predictLoc, followVec,
+      accelerationVec, steerVec, diffVec;
+
+  predict = vec2.create();
+  dir = vec2.create();
+  a = vec2.create();
+  b = vec2.create();
+  ap = vec2.create();
+  ab = vec2.create();
+  clonea = vec2.create();
+  predictLoc = vec2.create();
+  followVec = vec2.create();
+  accelerationVec = vec2.create();
+  steerVec = vec2.create();
+  diffVec = vec2.create();
+
   this.location = location;
   this.initMass = mass;
   this.mass = mass;
@@ -103,12 +120,12 @@ var Vehicle = function (location, mass) {
   this.follow = function (path) {
 
     /** Predict future location */
-    var predict = vec2.clone(this.velocity);
+    predict.set(this.velocity);
 
     vec2.normalize(predict, predict);
     vec2.scale(predict, predict, 25);
 
-    var predictLoc = vec2.create();
+    predictLoc.set([0, 0]);
 
     vec2.add(predictLoc, predictLoc, this.location);
     vec2.add(predictLoc, predictLoc, predict);
@@ -118,17 +135,17 @@ var Vehicle = function (location, mass) {
     var worldRecord = 1000000; // Will be updated with shortest distance to path. Start with a very high value.
 
     /** Loop through each point of the path */
-    for (var i = 0; i < path.points.length; i++) {
+    for (var i = 0, len = path.points.length; i < len; i++) {
 
       /** Get current and next point of the path */
-      var a = vec2.clone(path.points[i]);
-      var b = vec2.clone(path.points[(i + 1) % path.points.length]);
+      a.set(path.points[i]);
+      b.set(path.points[(i + 1) % path.points.length]);
 
       /** Calculate a normal point */
       var normalPoint = this.getNormalPoint(predictLoc, a, b);
 
       /** Calculate direction towards the next point */
-      var dir = vec2.clone(b);
+      dir.set(b);
 
       vec2.sub(dir, dir, a);
 
@@ -139,12 +156,12 @@ var Vehicle = function (location, mass) {
       if (normalPoint[0] < Math.min(a[0], b[0]) || normalPoint[0] > Math.max(a[0], b[0]) ||
           normalPoint[1] < Math.min(a[1], b[1]) || normalPoint[1] > Math.max(a[1], b[1])) {
 
-        normalPoint = vec2.clone(b);
+        normalPoint.set(b);
 
-        a = vec2.clone(path.points[(i + 1) % path.points.length]);
-        b = vec2.clone(path.points[(i + 2) % path.points.length]);
+        a.set(path.points[(i + 1) % path.points.length]);
+        b.set(path.points[(i + 2) % path.points.length]);
 
-        dir = vec2.clone(b);
+        dir.set(b);
         vec2.sub(dir, dir, a);
       }
 
@@ -172,7 +189,9 @@ var Vehicle = function (location, mass) {
     if (worldRecord > path.radius / 5) {
       return this.seek(target);
     } else {
-      return vec2.create();
+      followVec.set([0, 0]);
+
+      return followVec;
     }
   };
 
@@ -189,8 +208,8 @@ var Vehicle = function (location, mass) {
    * @returns {Array} Normal point vec2
    */
   this.getNormalPoint = function (p, a, b) {
-    var ap = vec2.clone(p);
-    var ab = vec2.clone(b);
+    ap.set(p);
+    ab.set(b);
 
     /** Perform scalar projection calculations */
     vec2.sub(ap, ap, a);
@@ -198,9 +217,9 @@ var Vehicle = function (location, mass) {
     vec2.normalize(ab, ab);
     vec2.scale(ab, ab, vec2.dot(ap, ab));
 
-    var normalPoint = vec2.add(vec2.create(), vec2.clone(a), ab);
+    clonea.set(a)
 
-    return normalPoint;
+    return vec2.add(vec2.create(), clonea, ab);
   };
 
   /**
@@ -218,7 +237,10 @@ var Vehicle = function (location, mass) {
     vec2.add(this.velocity, this.velocity, this.acceleration);
     vec2.limit(this.velocity, this.velocity, this.maxspeed);
     vec2.add(this.location, this.location, this.velocity);
-    this.acceleration = vec2.create();
+
+    accelerationVec.set([0, 0]);
+
+    this.acceleration = accelerationVec;
   };
 
   /**
@@ -249,11 +271,14 @@ var Vehicle = function (location, mass) {
    */
   this.separate = function (boids) {
     var desiredSeparation = this.radius * 2 + 2,
-        steer = vec2.create(),
-        count = 0;
+        count = 0,
+        steer;
+
+    steerVec.set([0, 0]);
+    steer = steerVec;
 
     /** Loop through each vehicle */
-    for (var i = 0; i < boids.length; i++) {
+    for (var i = 0, len = boids.length; i < len; i++) {
       var other = boids[i],
           d = this.location;
 
@@ -262,7 +287,11 @@ var Vehicle = function (location, mass) {
 
       /** Do stuff if the vehicle is not current one and the other one is within specified distance */
       if ((d > 0) && (d < desiredSeparation)) {
-        var diff = vec2.sub(vec2.create(), this.location, other.location); // Point away from the vehicle
+        var diff;
+
+        diffVec.set([0, 0]);
+
+        diff = vec2.sub(diffVec, this.location, other.location); // Point away from the vehicle
 
         vec2.normalize(diff, diff);
         vec2.scale(diff, diff, 1 / d); // The closer the other vehicle is, the more current one will flee and vice versa

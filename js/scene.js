@@ -61,7 +61,7 @@ setPoints();
 /** Define vehicles list and push number of Vehicle object instances passing random location and mass */
 var vehicles = [];
 
-for (var i = 0; i < 200; i++) {
+for (var i = 0; i < 500; i++) {
   var mass = Math.random() * (5 - 1) + 1;
 
   var vehicle = new Vehicle(vec2.fromValues(WIDTH * Math.random(), HEIGHT * Math.random()), mass);
