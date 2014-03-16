@@ -217,7 +217,7 @@ var Vehicle = function (location, mass) {
    * @param {Array} a Start point of the path segment
    * @param {Array} b End point of the path segment
    *
-   * @returns {Array} Normal point vec2
+   * @returns {Array} Normal point float32x4
    */
   this.getNormalPoint = function (p, a, b) {
     ap = SIMD.float32x4.withX(ap, p.x);
