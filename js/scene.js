@@ -85,7 +85,7 @@ setPoints();
 /** Define vehicles list and push number of Vehicle object instances passing random location and mass */
 var vehicles = [];
 
-for (var i = 0; i < 1000; i++) {
+for (var i = 0; i < 100; i++) {
   var mass = Math.random() * (5 - 1) + 1;
 
   var vehicle = new Vehicle(SIMD.float32x4(WIDTH * Math.random(), HEIGHT * Math.random(), 0, 0), mass);

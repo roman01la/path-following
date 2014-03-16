@@ -349,7 +349,7 @@ var Vehicle = function (location, mass) {
     var steer;
 
     target = SIMD.float32x4.normalize(target);
-    scale = SIMD.float32x4.scale(target, this.maxspeed);
+    target = SIMD.float32x4.scale(target, this.maxspeed);
 
     steer = target;
 
