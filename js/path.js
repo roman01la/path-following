@@ -24,7 +24,7 @@ var Path = function() {
    * @param {Number} y Y coordinate of the path point
    */
   this.addPoint = function (x, y) {
-    var point = vec2.fromValues(x, y);
+    var point = SIMD.float32x4(x, y, 0, 0);
 
     this.points.push(point);
   };
@@ -44,7 +44,7 @@ var Path = function() {
     ctx.beginPath();
 
     for (var i = 0; i < this.points.length; i++) {
-      ctx.lineTo(this.points[i][0], this.points[i][1]);
+      ctx.lineTo(this.points[i].x, this.points[i].y);
     }
     ctx.closePath();
 

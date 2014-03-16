@@ -25,18 +25,18 @@ var Vehicle = function (location, mass) {
       a, b, ap, ab, clonea, predictLoc, followVec,
       accelerationVec, steerVec, diffVec;
 
-  predict = vec2.create();
-  dir = vec2.create();
-  a = vec2.create();
-  b = vec2.create();
-  ap = vec2.create();
-  ab = vec2.create();
-  clonea = vec2.create();
-  predictLoc = vec2.create();
-  followVec = vec2.create();
-  accelerationVec = vec2.create();
-  steerVec = vec2.create();
-  diffVec = vec2.create();
+  predict = SIMD.float32x4.zero();
+  dir = SIMD.float32x4.zero();
+  a = SIMD.float32x4.zero();
+  b = SIMD.float32x4.zero();
+  ap = SIMD.float32x4.zero();
+  ab = SIMD.float32x4.zero();
+  clonea = SIMD.float32x4.zero();
+  predictLoc = SIMD.float32x4.zero();
+  followVec = SIMD.float32x4.zero();
+  accelerationVec = SIMD.float32x4.zero();
+  steerVec = SIMD.float32x4.zero();
+  diffVec = SIMD.float32x4.zero();
 
   this.location = location;
   this.initMass = mass;
@@ -44,8 +44,8 @@ var Vehicle = function (location, mass) {
   this.maxspeed = 4 * 1 / this.mass;
   this.maxforce = 1 / (this.mass * this.maxspeed);
   this.radius = this.mass * 2;
-  this.acceleration = vec2.create();
-  this.velocity = vec2.fromValues(this.maxspeed, 0);
+  this.acceleration = SIMD.float32x4.zero();
+  this.velocity = SIMD.float32x4(this.maxspeed, 0, 0, 0);
   this.bouncesNum = 0;
   this.isBouncing = false;
 
@@ -70,13 +70,13 @@ var Vehicle = function (location, mass) {
     }
 
     /** Scale up forces to produce stronger impact */
-    vec2.scale(f, f, 2);
-    vec2.scale(s, s, 4);
+    f = SIMD.float32x4.scale(f, 2);
+    s = SIMD.float32x4.scale(s, 4);
 
     /** Calculate the average force */
-    var forces = vec2.add(vec2.create(), f, s);
+    var forces = SIMD.float32x4.add(f, s);
 
-    vec2.scale(forces, forces, 1/this.mass);
+    forces = SIMD.float32x4.scale(forces, 1 / this.mass);
 
     /** Apply force */
     this.applyForce(forces);
@@ -91,7 +91,7 @@ var Vehicle = function (location, mass) {
    * @param {Array} force A force or an average force to apply on the vehicle
    */
   this.applyForce = function (force) {
-    vec2.add(this.acceleration, this.acceleration, force);
+    this.acceleration = SIMD.float32x4.add(this.acceleration, force);
   };
 
   /**
@@ -120,15 +120,16 @@ var Vehicle = function (location, mass) {
   this.follow = function (path) {
 
     /** Predict future location */
-    predict.set(this.velocity);
+    predict = SIMD.float32x4.withX(predict, this.velocity.x);
+    predict = SIMD.float32x4.withY(predict, this.velocity.y);
 
-    vec2.normalize(predict, predict);
-    vec2.scale(predict, predict, 25);
+    predict = SIMD.float32x4.normalize(predict);
+    predict = SIMD.float32x4.scale(predict, 25);
 
-    predictLoc.set([0, 0]);
+    predictLoc = SIMD.float32x4.zero();
 
-    vec2.add(predictLoc, predictLoc, this.location);
-    vec2.add(predictLoc, predictLoc, predict);
+    predictLoc = SIMD.float32x4.add(predictLoc, this.location);
+    predictLoc = SIMD.float32x4.add(predictLoc, predict);
 
     /** Define things */
     var target = null;
@@ -136,46 +137,57 @@ var Vehicle = function (location, mass) {
 
     /** Loop through each point of the path */
     for (var i = 0, len = path.points.length; i < len; i++) {
+      var bpoint = path.points[(i + 1) % path.points.length];
 
       /** Get current and next point of the path */
-      a.set(path.points[i]);
-      b.set(path.points[(i + 1) % path.points.length]);
+      a = SIMD.float32x4.withX(a, path.points[i].x);
+      a = SIMD.float32x4.withY(a, path.points[i].y);
+      b = SIMD.float32x4.withX(b, bpoint.x);
+      b = SIMD.float32x4.withY(b, bpoint.y);
 
       /** Calculate a normal point */
       var normalPoint = this.getNormalPoint(predictLoc, a, b);
 
       /** Calculate direction towards the next point */
-      dir.set(b);
+      dir = SIMD.float32x4.withX(dir, b.x);
+      dir = SIMD.float32x4.withY(dir, b.y);
 
-      vec2.sub(dir, dir, a);
+      dir = SIMD.float32x4.sub(dir, a);
 
       /**
        * Set a normal point to the end of the current path segment and
        * recalculate direction if the vehicle is not within it
        */
-      if (normalPoint[0] < Math.min(a[0], b[0]) || normalPoint[0] > Math.max(a[0], b[0]) ||
-          normalPoint[1] < Math.min(a[1], b[1]) || normalPoint[1] > Math.max(a[1], b[1])) {
+      if (normalPoint.x < Math.min(a.x, b.x) || normalPoint.x > Math.max(a.x, b.x) ||
+          normalPoint.y < Math.min(a.y, b.y) || normalPoint.y > Math.max(a.y, b.y)) {
 
-        normalPoint.set(b);
+        var apoint = path.points[(i + 1) % path.points.length],
+            bpoint = path.points[(i + 2) % path.points.length];
 
-        a.set(path.points[(i + 1) % path.points.length]);
-        b.set(path.points[(i + 2) % path.points.length]);
+        normalPoint = SIMD.float32x4.withX(normalPoint, b.x);
+        normalPoint = SIMD.float32x4.withY(normalPoint, b.y);
 
-        dir.set(b);
-        vec2.sub(dir, dir, a);
+        a = SIMD.float32x4.withX(a, apoint.x);
+        a = SIMD.float32x4.withY(a, apoint.y);
+        b = SIMD.float32x4.withX(b, bpoint.x);
+        b = SIMD.float32x4.withY(b, bpoint.y);
+
+        dir = SIMD.float32x4.withX(dir, b.x);
+        dir = SIMD.float32x4.withY(dir, b.y);
+        dir = SIMD.float32x4.sub(dir, a);
       }
 
       /** Get a distance between future location and normal point */
-      var d = vec2.dist(predictLoc, normalPoint);
+      var d = SIMD.float32x4.dist(predictLoc, normalPoint);
 
       /** Calculate steering target for current path segment if the vehicle is going in segment direction */
       if (d < worldRecord) {
         worldRecord = d;
         target = normalPoint;
 
-        vec2.normalize(dir, dir);
-        vec2.scale(dir, dir, 25);
-        vec2.add(target, target, dir);
+        dir = SIMD.float32x4.normalize(dir);
+        dir = SIMD.float32x4.scale(dir, 25);
+        target = SIMD.float32x4.add(target, dir);
       }
     }
 
@@ -189,7 +201,7 @@ var Vehicle = function (location, mass) {
     if (worldRecord > path.radius / 5) {
       return this.seek(target);
     } else {
-      followVec.set([0, 0]);
+      followVec = SIMD.float32x4.zero();
 
       return followVec;
     }
@@ -208,18 +220,21 @@ var Vehicle = function (location, mass) {
    * @returns {Array} Normal point vec2
    */
   this.getNormalPoint = function (p, a, b) {
-    ap.set(p);
-    ab.set(b);
+    ap = SIMD.float32x4.withX(ap, p.x);
+    ap = SIMD.float32x4.withY(ap, p.y);
+    ab = SIMD.float32x4.withX(ab, b.x);
+    ab = SIMD.float32x4.withY(ab, b.y);
 
     /** Perform scalar projection calculations */
-    vec2.sub(ap, ap, a);
-    vec2.sub(ab, ab, a);
-    vec2.normalize(ab, ab);
-    vec2.scale(ab, ab, vec2.dot(ap, ab));
+    ap = SIMD.float32x4.sub(ap, a);
+    ab = SIMD.float32x4.sub(ab, a);
+    ab = SIMD.float32x4.normalize(ab);
+    ab = SIMD.float32x4.scale(ab, SIMD.float32x4.dot(ap, ab));
 
-    clonea.set(a)
+    clonea = SIMD.float32x4.withX(clonea, a.x);
+    clonea = SIMD.float32x4.withY(clonea, a.y);
 
-    return vec2.add(vec2.create(), clonea, ab);
+    return SIMD.float32x4.add(clonea, ab);
   };
 
   /**
@@ -234,11 +249,11 @@ var Vehicle = function (location, mass) {
      * New location = current location + (velocity + acceleration) limited by maximum speed
      * Reset acceleration to avoid permanent increasing
      */
-    vec2.add(this.velocity, this.velocity, this.acceleration);
-    vec2.limit(this.velocity, this.velocity, this.maxspeed);
-    vec2.add(this.location, this.location, this.velocity);
+    this.velocity = SIMD.float32x4.add(this.velocity, this.acceleration);
+    this.velocity = SIMD.float32x4.limit(this.velocity, this.maxspeed);
+    this.location = SIMD.float32x4.add(this.location, this.velocity);
 
-    accelerationVec.set([0, 0]);
+    accelerationVec = SIMD.float32x4.zero();
 
     this.acceleration = accelerationVec;
   };
@@ -254,7 +269,7 @@ var Vehicle = function (location, mass) {
    * @returns {Array} Path following behavior
    */
   this.seek = function (target) {
-    vec2.sub(target, target, this.location);
+    target = SIMD.float32x4.sub(target, this.location);
 
     return this.steer(target);
   };
@@ -274,7 +289,7 @@ var Vehicle = function (location, mass) {
         count = 0,
         steer;
 
-    steerVec.set([0, 0]);
+    steerVec = SIMD.float32x4.zero();
     steer = steerVec;
 
     /** Loop through each vehicle */
@@ -283,19 +298,19 @@ var Vehicle = function (location, mass) {
           d = this.location;
 
       /** Get distance between current and other vehicle */
-      d = vec2.dist(d, other.location);
+      d = SIMD.float32x4.dist(d, other.location);
 
       /** Do stuff if the vehicle is not current one and the other one is within specified distance */
       if ((d > 0) && (d < desiredSeparation)) {
         var diff;
 
-        diffVec.set([0, 0]);
+        diffVec = SIMD.float32x4.zero();
 
-        diff = vec2.sub(diffVec, this.location, other.location); // Point away from the vehicle
+        diff = SIMD.float32x4.sub(this.location, other.location); // Point away from the vehicle
 
-        vec2.normalize(diff, diff);
-        vec2.scale(diff, diff, 1 / d); // The closer the other vehicle is, the more current one will flee and vice versa
-        vec2.add(steer, steer, diff);
+        diff = SIMD.float32x4.normalize(diff);
+        diff = SIMD.float32x4.scale(diff, 1 / d); // The closer the other vehicle is, the more current one will flee and vice versa
+        steer = SIMD.float32x4.add(steer, diff);
 
         count++;
       }
@@ -303,11 +318,11 @@ var Vehicle = function (location, mass) {
 
     /** Get average steering vector */
     if (count > 0) {
-      vec2.scale(steer, steer, 1 / count);
+      steer = SIMD.float32x4.scale(steer, 1 / count);
     }
 
     /** Bounce! Steer away and draw bounce effect */
-    if (vec2.len(steer) > 0) {
+    if (SIMD.float32x4.len(steer) > 0) {
       this.isBouncing = true;
       this.drawBounce();
 
@@ -333,13 +348,13 @@ var Vehicle = function (location, mass) {
   this.steer = function (target) {
     var steer;
 
-    vec2.normalize(target, target);
-    vec2.scale(target, target, this.maxspeed);
+    target = SIMD.float32x4.normalize(target);
+    scale = SIMD.float32x4.scale(target, this.maxspeed);
 
     steer = target;
 
-    vec2.sub(steer, steer, this.velocity);
-    vec2.limit(steer, steer, this.maxforce);
+    steer = SIMD.float32x4.sub(steer, this.velocity);
+    steer = SIMD.float32x4.limit(steer, this.maxforce);
 
     return steer;
   };
@@ -351,11 +366,11 @@ var Vehicle = function (location, mass) {
    * @memberOf Vehicle
    */
   this.borders = function() {
-    if (this.location[0] < -this.radius) {
-      this.location[0] = WIDTH + this.radius;
+    if (this.location.x < -this.radius) {
+      this.location.x = WIDTH + this.radius;
     }
-    if (this.location[0] > WIDTH + this.radius) {
-      this.location[0] = -this.radius;
+    if (this.location.x > WIDTH + this.radius) {
+      this.location.x = -this.radius;
     }
   };
 
@@ -369,7 +384,7 @@ var Vehicle = function (location, mass) {
     ctx.fillStyle = this.style || '#000';
 
     ctx.beginPath();
-    ctx.arc(this.location[0], this.location[1], this.radius, 0, 2 * Math.PI, false);
+    ctx.arc(this.location.x, this.location.y, this.radius, 0, 2 * Math.PI, false);
     ctx.closePath();
 
     ctx.fill();
@@ -385,7 +400,7 @@ var Vehicle = function (location, mass) {
     ctx.strokeStyle = '#ff0000';
     ctx.lineWidth = 1;
     ctx.beginPath();
-    ctx.arc(this.location[0], this.location[1], this.radius+5, 0, 2 * Math.PI, false);
+    ctx.arc(this.location.x, this.location.y, this.radius + 5, 0, 2 * Math.PI, false);
     ctx.closePath();
     ctx.stroke();
 

@@ -1,20 +1,44 @@
-/** Scale up forces to produce stronger impact */
-vec2.limit = function (out, v, high) {
-  'use strict';
+SIMD.float32x4.normalize = function (vec) {
+  var len = SIMD.float32x4.mul(vec, vec);
+  
+  len = len.x + len.y;
 
-  var x = v[0],
-      y = v[1];
-
-  var len = x*x + y*y;
-
-  if (len > high*high && len > 0) {
-    out[0] = x;
-    out[1] = y;
-    vec2.normalize(out, out);
-    vec2.scale(out, out, high);
+  if (len > 0) {
+    len = 1 / Math.sqrt(len);
+    vec = SIMD.float32x4.scale(vec, len);
   }
 
-  return out;
+  return vec;
+};
+
+SIMD.float32x4.dot = function (a, b) {
+  return a.x * b.x + a.y * b.y;
+};
+
+SIMD.float32x4.dist = function (a, b) {
+  var diff = SIMD.float32x4.sub(b, a);
+
+  diff = SIMD.float32x4.mul(diff, diff);
+
+  return Math.sqrt(diff.x + diff.y);
+};
+
+SIMD.float32x4.limit = function (v, high) {
+  var sqr = SIMD.float32x4.mul(v, v),
+      len = sqr.x + sqr.y;
+
+  if (len > high*high && len > 0) {
+    v = SIMD.float32x4.normalize(v);
+    v = SIMD.float32x4.scale(v, high);
+  }
+
+  return v;
+};
+
+SIMD.float32x4.len = function (a) {
+  var len = SIMD.float32x4.mul(a, a);
+
+  return Math.sqrt(len.x + len.y);
 };
 
 /** Init scene */
@@ -61,10 +85,10 @@ setPoints();
 /** Define vehicles list and push number of Vehicle object instances passing random location and mass */
 var vehicles = [];
 
-for (var i = 0; i < 500; i++) {
+for (var i = 0; i < 1000; i++) {
   var mass = Math.random() * (5 - 1) + 1;
 
-  var vehicle = new Vehicle(vec2.fromValues(WIDTH * Math.random(), HEIGHT * Math.random()), mass);
+  var vehicle = new Vehicle(SIMD.float32x4(WIDTH * Math.random(), HEIGHT * Math.random(), 0, 0), mass);
 
   vehicles.push(vehicle);
 }
